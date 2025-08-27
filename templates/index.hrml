@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Handwritten Math OCR + Solver</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script async id="MathJax-script"
+          src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Handwritten Math OCR + Solver</h1>
+      <p>Upload an image of a handwritten equation → get LaTeX and solve it.</p>
+    </header>
+
+    <form id="uploadForm">
+      <label for="image" class="file-label">Choose an image</label>
+      <input id="image" name="image" type="file" accept="image/*" required />
+      <div id="previewWrapper" class="preview hidden">
+        <img id="preview" alt="Preview" />
+      </div>
+      <button id="submitBtn" type="submit">Recognize</button>
+    </form>
+
+    <section id="resultSection" class="result hidden">
+      <h2>OCR Prediction</h2>
+      <div class="code-row">
+        <code id="rawLatex"></code>
+        <div class="row-actions">
+          <button id="copyBtn" class="ghost">Copy</button>
+          <button id="solveBtn" class="primary">Solve it</button>
+        </div>
+      </div>
+
+      <h3>Rendered</h3>
+      <div id="rendered" class="rendered">—</div>
+    </section>
+
+    <section id="solverSection" class="solver hidden">
+      <h2>Solver Results</h2>
+
+      <div class="solver-block">
+        <h4>Equation</h4>
+        <div id="eqLatex" class="rendered">—</div>
+      </div>
+
+      <div class="solver-grid">
+        <div class="solver-block">
+          <h4>Solutions</h4>
+          <ul id="solutions"></ul>
+        </div>
+        <div class="solver-block">
+          <h4>Simplified (LHS−RHS)</h4>
+          <div id="simplified" class="rendered">—</div>
+        </div>
+        <div class="solver-block">
+          <h4>Factored</h4>
+          <div id="factored" class="rendered">—</div>
+        </div>
+        <div class="solver-block">
+          <h4>Derivative (d/dx)</h4>
+          <div id="derivative" class="rendered">—</div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <small>
+        Tip: Use clean, high-contrast crops. Solver assumes a single variable <code>x</code> by default.
+      </small>
+    </footer>
+  </div>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const fileInput = document.getElementById('image');
+    const previewWrapper = document.getElementById('previewWrapper');
+    const preview = document.getElementById('preview');
+    const submitBtn = document.getElementById('submitBtn');
+
+    const resultSection = document.getElementById('resultSection');
+    const rawLatex = document.getElementById('rawLatex');
+    const rendered = document.getElementById('rendered');
+    const copyBtn = document.getElementById('copyBtn');
+    const solveBtn = document.getElementById('solveBtn');
+
+    const solverSection = document.getElementById('solverSection');
+    const eqLatex = document.getElementById('eqLatex');
+    const solutionsList = document.getElementById('solutions');
+    const simplified = document.getElementById('simplified');
+    const factored = document.getElementById('factored');
+    const derivative = document.getElementById('derivative');
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        preview.src = e.target.result;
+        previewWrapper.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const file = fileInput.files?.[0];
+      if (!file) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Recognizing…';
+      resultSection.classList.add('hidden');
+      solverSection.classList.add('hidden');
+
+      const fd = new FormData();
+      fd.append('image', file);
+
+      try {
+        const res = await fetch('/predict', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Recognition failed');
+
+        rawLatex.textContent = data.latex || '';
+        rendered.textContent = `$$${data.latex || ''}$$`;
+        if (window.MathJax?.typesetPromise) await MathJax.typesetPromise([rendered]);
+        resultSection.classList.remove('hidden');
+      } catch (err) {
+        rawLatex.textContent = '';
+        rendered.textContent = 'Error: ' + err.message;
+        resultSection.classList.remove('hidden');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Recognize';
+      }
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      const text = rawLatex.textContent;
+      if (!text) return;
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => (copyBtn.textContent = 'Copy'), 1200);
+    });
+
+    solveBtn.addEventListener('click', async () => {
+      const equation = rawLatex.textContent.trim();
+      if (!equation) return;
+
+      solveBtn.disabled = true;
+      solveBtn.textContent = 'Solving…';
+      solverSection.classList.add('hidden');
+
+      try {
+        const res = await fetch('/solve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ equation, variable: 'x' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Solve failed');
+
+        // Equation
+        eqLatex.textContent = `$$${data.equation_latex || ''}$$`;
+
+        // Solutions
+        solutionsList.innerHTML = '';
+        const arr = Array.isArray(data.solutions_latex) ? data.solutions_latex : [];
+        if (arr.length === 0) {
+          solutionsList.innerHTML = '<li>No closed-form solutions found.</li>';
+        } else {
+          arr.forEach(s => {
+            const li = document.createElement('li');
+            li.innerHTML = `$$${s}$$`;
+            solutionsList.appendChild(li);
+          });
+        }
+
+        // Extras
+        simplified.textContent = `$$${data.simplified_latex || ''}$$`;
+        factored.textContent = `$$${data.factored_latex || ''}$$`;
+        derivative.textContent = `$$${data.derivative_latex || ''}$$`;
+
+        if (window.MathJax?.typesetPromise) {
+          await MathJax.typesetPromise([eqLatex, solutionsList, simplified, factored, derivative]);
+        }
+
+        solverSection.classList.remove('hidden');
+      } catch (err) {
+        eqLatex.textContent = 'Error: ' + err.message;
+        solverSection.classList.remove('hidden');
+      } finally {
+        solveBtn.disabled = false;
+        solveBtn.textContent = 'Solve it';
+      }
+    });
+  </script>
+</body>
+</html>

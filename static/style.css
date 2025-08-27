@@ -1,0 +1,114 @@
+:root {
+  --bg: #0b0f12;
+  --card: #12181d;
+  --muted: #9fb0c0;
+  --fg: #e9f1f7;
+  --primary: #3fb950; /* GitHub green-ish */
+  --border: #24303b;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+header, footer, .result, .solver, form, .preview {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-top: 16px;
+}
+
+h1 { margin: 0 0 6px; font-size: 1.75rem; }
+p { color: var(--muted); margin: 0; }
+h2 { margin: 0 0 10px; font-size: 1.25rem; }
+h3, h4 { margin: 12px 0 8px; }
+
+.hidden { display: none; }
+
+.file-label {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+input[type="file"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  background: #0e141a;
+  color: var(--muted);
+  border-radius: 8px;
+}
+
+.preview img {
+  max-width: 100%;
+  display: block;
+  margin-top: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+button {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #0e141a;
+  color: var(--fg);
+  cursor: pointer;
+}
+button.primary { background: var(--primary); border-color: transparent; color: #0b2b12; font-weight: 600; }
+button.ghost { background: transparent; }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.code-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.code-row code {
+  background: #0e141a;
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  border-radius: 6px;
+  display: inline-block;
+  word-break: break-all;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.rendered {
+  background: #0e141a;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.solver-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.solver-block {
+  background: #0e141a;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
